@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"log"
+	"os"
 
 	"mc-aws-manager/internal"
 )
@@ -15,9 +17,11 @@ func main() {
 		port             = flag.String("port", "25565", "port to use")
 		dataPath         = flag.String("data_path", "/mc-server-data", "data path in container")
 		hostDataPath     = flag.String("data", "/mc-server-data", "data path in host")
+		webhookUrl       = flag.String("webhook", "", "webhook url")
 	)
 	flag.Parse()
 
+	// create and run
 	cli, err := internal.NewDockerClient()
 	if err != nil {
 		log.Fatal("Cannot connect to docker", err)
@@ -34,5 +38,23 @@ func main() {
 		log.Fatal("Cannot create container", err)
 	}
 
-	internal.AttachContainer(cli, containerId)
+	// attach and subscribe
+	quit := make(chan bool)
+	waiter, err := internal.AttachContainer(cli, containerId)
+	isDoneLogger := internal.SubscribeForWebhook(waiter.Reader, *webhookUrl, quit)
+	if err != nil {
+		log.Fatal(err)
+	}
+	inout := internal.CreateChannelForStdin(waiter.Conn)
+	go func() {
+		scanner := bufio.NewScanner(os.Stdin)
+		for scanner.Scan() {
+			inout <- []byte(scanner.Text())
+		}
+	}()
+
+	// shutdown
+	internal.WaitUntilContainerNotRunning(cli, containerId)
+	quit <- true
+	<-isDoneLogger
 }

@@ -1,11 +1,11 @@
 package internal
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"os"
 	"path/filepath"
 
@@ -79,50 +79,41 @@ func RunMinecraftServerContainer(cli *client.Client, cfg *MCServerConfig) (strin
 	return resp.ID, nil
 }
 
-func AttachContainer(cli *client.Client, containerId string) {
+func AttachContainer(cli *client.Client, containerId string) (types.HijackedResponse, error) {
 	log.Println("Attach to container id", containerId)
 	ctx := context.Background()
-	waiter, err := cli.ContainerAttach(ctx, containerId, types.ContainerAttachOptions{
+	return cli.ContainerAttach(ctx, containerId, types.ContainerAttachOptions{
 		Stderr: true,
 		Stdout: true,
 		Stdin:  true,
 		Stream: true,
 	})
+}
 
-	go io.Copy(os.Stdout, waiter.Reader)
-	go io.Copy(os.Stderr, waiter.Reader)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	inout := make(chan []byte)
-	go func() {
-		scanner := bufio.NewScanner(os.Stdin)
-		for scanner.Scan() {
-			inout <- []byte(scanner.Text())
-		}
-	}()
-
+func CreateChannelForStdin(con net.Conn) chan<- []byte {
+	stdin := make(chan []byte)
 	go func(w io.WriteCloser) {
 		for {
-			data, ok := <-inout
-			//log.Println("Received to send to docker", string(data))
+			data, ok := <-stdin
 			if !ok {
 				fmt.Println("!ok")
 				w.Close()
 				return
 			}
-
 			w.Write(append(data, '\n'))
 		}
-	}(waiter.Conn)
+	}(con)
 
+	return stdin
+}
+
+func WaitUntilContainerNotRunning(cli *client.Client, containerId string) {
+	ctx := context.Background()
 	statusCh, errCh := cli.ContainerWait(ctx, containerId, container.WaitConditionNotRunning)
 	select {
 	case err := <-errCh:
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 		}
 	case <-statusCh:
 	}
