@@ -7,7 +7,6 @@ import (
 	"log"
 	"net"
 	"os"
-	"path/filepath"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -31,10 +30,6 @@ func NewDockerClient() (*client.Client, error) {
 }
 
 func RunMinecraftServerContainer(cli *client.Client, cfg *MCServerConfig) (string, error) {
-	hostDataPath, err := makeAbsAndCreateDir(cfg.HostDataPath)
-	if err != nil {
-		return "", err
-	}
 	ctx := context.Background()
 
 	log.Println("Pulling image", cfg.Image)
@@ -52,7 +47,7 @@ func RunMinecraftServerContainer(cli *client.Client, cfg *MCServerConfig) (strin
 	}
 
 	log.Println("Create image", cfg.Image, "with name", cfg.ContainerName)
-	log.Println("Mount data path to", hostDataPath)
+	log.Println("Mount data path to", cfg.HostDataPath)
 	containerConfig := &container.Config{
 		Image:        cfg.Image,
 		Env:          []string{fmt.Sprintf("JAVA_TOOL_OPTIONS=%s", cfg.JavaToolsOptions)},
@@ -65,7 +60,7 @@ func RunMinecraftServerContainer(cli *client.Client, cfg *MCServerConfig) (strin
 	}
 	hostConfig := &container.HostConfig{
 		PortBindings: nat.PortMap{nat.Port(cfg.Port): []nat.PortBinding{{HostIP: "0.0.0.0", HostPort: cfg.Port}}},
-		Mounts:       []mount.Mount{{Type: mount.TypeBind, Source: hostDataPath, Target: cfg.DataPath}},
+		Mounts:       []mount.Mount{{Type: mount.TypeBind, Source: cfg.HostDataPath, Target: cfg.DataPath}},
 	}
 	resp, err := cli.ContainerCreate(ctx, containerConfig, hostConfig, nil, nil, cfg.ContainerName)
 	if err != nil {
@@ -118,20 +113,6 @@ func WaitUntilContainerNotRunning(cli *client.Client, containerId string) {
 		}
 	case <-statusCh:
 	}
-}
-
-func makeAbsAndCreateDir(path string) (string, error) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-	result := filepath.Join(cwd, path)
-	err = os.MkdirAll(result, os.ModePerm)
-	if err != nil {
-		return "", err
-	}
-
-	return result, nil
 }
 
 func removeContainerIfExists(cli *client.Client, containerName string) error {
