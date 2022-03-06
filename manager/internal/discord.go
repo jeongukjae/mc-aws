@@ -37,7 +37,8 @@ func SubscribeForWebhook(reader *bufio.Reader, webhookUrl string, quit <-chan bo
 				}
 				if err != nil {
 					if err == io.EOF {
-						continue
+						isDone <- true
+						return
 					}
 					log.Println(err)
 				}
