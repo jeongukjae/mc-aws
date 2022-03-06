@@ -45,16 +45,21 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	inout := internal.CreateChannelForStdin(waiter.Conn)
+	mcCmdChan := internal.CreateChannelForStdin(waiter.Conn)
+	isDoneHttp := internal.RunHttpServer(mcCmdChan, quit)
 	go func() {
 		scanner := bufio.NewScanner(os.Stdin)
 		for scanner.Scan() {
-			inout <- []byte(scanner.Text())
+			mcCmdChan <- []byte(scanner.Text())
 		}
 	}()
 
 	// shutdown
 	internal.WaitUntilContainerNotRunning(cli, containerId)
+	log.Println("Docker exited")
 	quit <- true
 	<-isDoneLogger
+	log.Println("Logger exited")
+	<-isDoneHttp
+	log.Println("Http server exited")
 }

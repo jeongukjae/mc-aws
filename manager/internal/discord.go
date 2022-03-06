@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -35,6 +36,9 @@ func SubscribeForWebhook(reader *bufio.Reader, webhookUrl string, quit <-chan bo
 					fireDiscordWebhook(l, webhookUrl)
 				}
 				if err != nil {
+					if err == io.EOF {
+						continue
+					}
 					log.Println(err)
 				}
 			}
