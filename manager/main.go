@@ -6,6 +6,10 @@ import (
 	"log"
 	"os"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/seqsense/s3sync"
+
 	"mc-aws-manager/internal"
 )
 
@@ -18,8 +22,15 @@ func main() {
 		dataPath         = flag.String("data_path", "/mc-server-data", "data path in container")
 		hostDataPath     = flag.String("data", "/mc-server-data", "data path in host")
 		webhookUrl       = flag.String("webhook", "", "webhook url")
+		region           = flag.String("region", "ap-northeast-2", "region of aws resource")
+		s3DataPath       = flag.String("s3_path", "", "s3 data path")
 	)
 	flag.Parse()
+
+	// s3 sync
+	sess, _ := session.NewSession(&aws.Config{Region: aws.String(*region)})
+	syncManager := s3sync.New(sess)
+	syncManager.Sync(*s3DataPath, *hostDataPath)
 
 	// create and run
 	cli, err := internal.NewDockerClient()
@@ -62,4 +73,8 @@ func main() {
 	log.Println("Logger exited")
 	<-isDoneHttp
 	log.Println("Http server exited")
+
+	// s3 sync again
+	log.Println("Sync to s3")
+	syncManager.Sync(*hostDataPath, *s3DataPath)
 }
