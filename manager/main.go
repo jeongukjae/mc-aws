@@ -16,7 +16,6 @@ func main() {
 		dataPath         = flag.String("data_path", "/mc-server-data", "data path in container")
 		hostDataPath     = flag.String("data", "/mc-server-data", "data path in host")
 	)
-
 	flag.Parse()
 
 	cli, err := internal.NewDockerClient()
