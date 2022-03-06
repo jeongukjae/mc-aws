@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -19,7 +18,7 @@ func SubscribeForWebhook(reader *bufio.Reader, webhookUrl string, quit <-chan bo
 	isDone := make(chan bool)
 
 	go (func(reader *bufio.Reader, webhookUrl string) {
-		size := 32 * 1024
+		size := 2000
 		buf := make([]byte, size)
 
 		for {
@@ -46,7 +45,7 @@ func SubscribeForWebhook(reader *bufio.Reader, webhookUrl string, quit <-chan bo
 }
 
 func fireDiscordWebhook(l string, webhookUrl string) {
-	payload, err := json.Marshal(discordWebhookPayload{Content: fmt.Sprintf("```\n%s\n```", l)})
+	payload, err := json.Marshal(discordWebhookPayload{Content: l})
 	if err != nil {
 		log.Println("Cannot marshal", err)
 	}
