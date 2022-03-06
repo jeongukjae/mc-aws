@@ -1,1 +1,1 @@
-# mc-aws-slack
+# mc-aws
