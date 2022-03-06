@@ -13,7 +13,7 @@ func main() {
 	var (
 		image            = flag.String("image", "ghcr.io/jeongukjae/mc-aws:1.18.2", "")
 		containerName    = flag.String("container_name", "mc-server-aws", "container name")
-		javaToolsOptions = flag.String("java_options", "-Xms1536M -Xmx1536M", "")
+		javaToolsOptions = flag.String("java_options", "-Xms1280M -Xmx1280M", "")
 		port             = flag.String("port", "25565", "port to use")
 		dataPath         = flag.String("data_path", "/mc-server-data", "data path in container")
 		hostDataPath     = flag.String("data", "/mc-server-data", "data path in host")

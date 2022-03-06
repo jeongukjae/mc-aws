@@ -43,6 +43,7 @@ func RunMinecraftServerContainer(cli *client.Client, cfg *MCServerConfig) (strin
 		return "", err
 	}
 	defer reader.Close()
+	io.Copy(os.Stdout, reader)
 
 	log.Println("Remove container if exists, container name:", cfg.ContainerName)
 	err = removeContainerIfExists(cli, cfg.ContainerName)
