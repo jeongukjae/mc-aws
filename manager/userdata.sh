@@ -51,7 +51,7 @@ usermod -a -G docker ec2-user
 
 # run manager
 mkdir /mc-server-data
-docker run --rm -it \
+docker run -d \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -v /mc-server-data:/mc-server-data \
     -p 80:80 \
