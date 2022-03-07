@@ -28,6 +28,7 @@ func main() {
 	flag.Parse()
 
 	// s3 sync
+	log.Println("Sync to s3")
 	sess, _ := session.NewSession(&aws.Config{Region: aws.String(*region)})
 	syncManager := s3sync.New(sess)
 	syncManager.Sync(*s3DataPath, *hostDataPath)
