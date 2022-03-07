@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -15,36 +14,38 @@ type discordWebhookPayload struct {
 	Content string `json:"content"`
 }
 
-func SubscribeForWebhook(reader *bufio.Reader, webhookUrl string, quit <-chan bool) <-chan bool {
+func SubscribeForWebhook(reader *bufio.Reader, webhookUrl string, quit <-chan bool, botMsg <-chan string) <-chan bool {
 	isDone := make(chan bool)
+	logChan := make(chan string)
 
-	go (func(reader *bufio.Reader, webhookUrl string) {
+	go (func() {
 		size := 2000
 		buf := make([]byte, size)
 
 		for {
-			time.Sleep(time.Second)
+			nr, _ := reader.Read(buf)
+			if nr > 0 {
+				l := string(buf[0:nr])
+				log.Print("MC]", l)
+				logChan <- l
+			}
+		}
+	})()
+
+	go (func() {
+		for {
+			time.Sleep(time.Second * 3)
 			select {
 			case <-quit:
 				isDone <- true
 				return
-			default:
-				nr, err := reader.Read(buf)
-				if nr > 0 {
-					l := string(buf[0:nr])
-					log.Print("MCLOG]", l)
-					fireDiscordWebhook(l, webhookUrl)
-				}
-				if err != nil {
-					if err == io.EOF {
-						isDone <- true
-						return
-					}
-					log.Println(err)
-				}
+			case msg := <-botMsg:
+				fireDiscordWebhook(msg, webhookUrl)
+			case msg := <-logChan:
+				fireDiscordWebhook(msg, webhookUrl)
 			}
 		}
-	})(reader, webhookUrl)
+	})()
 
 	return isDone
 }
@@ -59,7 +60,6 @@ func fireDiscordWebhook(l string, webhookUrl string) {
 	if err != nil {
 		log.Println(err)
 	}
-
 	defer resp.Body.Close()
 
 	if resp.StatusCode/100 != 2 {

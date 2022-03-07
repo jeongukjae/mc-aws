@@ -58,8 +58,11 @@ func main() {
 
 	// attach and subscribe
 	quit := make(chan bool)
+	botMsg := make(chan string)
+
 	waiter, err := internal.AttachContainer(cli, containerId)
-	isDoneLogger := internal.SubscribeForWebhook(waiter.Reader, *webhookUrl, quit)
+	isDoneMonitor, shouldExit := internal.GetServerStatus(cli, containerId, quit, botMsg)
+	isDoneLogger := internal.SubscribeForWebhook(waiter.Reader, *webhookUrl, quit, botMsg)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -71,13 +74,23 @@ func main() {
 			mcCmdChan <- []byte(scanner.Text())
 		}
 	}()
+	go func() {
+		<-shouldExit
+		mcCmdChan <- []byte("exit")
+	}()
 
 	// shutdown
 	internal.WaitUntilContainerNotRunning(cli, containerId)
 	log.Println("Docker exited")
+
 	quit <- true
+	quit <- true
+	quit <- true
+
 	<-isDoneLogger
 	log.Println("Logger exited")
+	<-isDoneMonitor
+	log.Println("Monitor exited")
 	<-isDoneHttp
 	log.Println("Http server exited")
 
