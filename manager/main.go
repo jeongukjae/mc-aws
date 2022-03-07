@@ -24,14 +24,20 @@ func main() {
 		webhookUrl       = flag.String("webhook", "", "webhook url")
 		region           = flag.String("region", "ap-northeast-2", "region of aws resource")
 		s3DataPath       = flag.String("s3_path", "", "s3 data path")
+		withS3Sync       = flag.Bool("sync", true, "sync s3")
 	)
 	flag.Parse()
 
+	var sess *session.Session
+	var syncManager *s3sync.Manager
+
 	// s3 sync
-	log.Println("Sync to s3")
-	sess, _ := session.NewSession(&aws.Config{Region: aws.String(*region)})
-	syncManager := s3sync.New(sess)
-	syncManager.Sync(*s3DataPath, *hostDataPath)
+	if *withS3Sync {
+		log.Println("Sync from s3", *withS3Sync)
+		sess, _ = session.NewSession(&aws.Config{Region: aws.String(*region)})
+		syncManager = s3sync.New(sess)
+		syncManager.Sync(*s3DataPath, *hostDataPath)
+	}
 
 	// create and run
 	cli, err := internal.NewDockerClient()
@@ -76,6 +82,8 @@ func main() {
 	log.Println("Http server exited")
 
 	// s3 sync again
-	log.Println("Sync to s3")
-	syncManager.Sync(*hostDataPath, *s3DataPath)
+	if *withS3Sync {
+		log.Println("Sync to s3")
+		syncManager.Sync(*hostDataPath, *s3DataPath)
+	}
 }
